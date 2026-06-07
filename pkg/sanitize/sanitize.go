@@ -128,7 +128,18 @@ func Sanitize(r io.Reader, w io.Writer, opts Options) (Result, error) {
 }
 
 func dispatch(format Format, data []byte, opts Options) (out []byte, outFormat Format, err error) {
-	return nil, FormatUnknown, fmt.Errorf("%w: %q", ErrUnsupportedFormat, format)
+	switch format {
+	case FormatJPEG:
+		return sanitizeJPEG(data, opts)
+	case FormatPNG:
+		out, err = sanitizePNG(data)
+		return out, FormatPNG, err
+	case FormatGIF:
+		out, err = sanitizeGIF(data)
+		return out, FormatGIF, err
+	default:
+		return nil, FormatUnknown, fmt.Errorf("%w: %q", ErrUnsupportedFormat, format)
+	}
 }
 
 func scanBytes(format Format, data []byte) (Report, error) {
