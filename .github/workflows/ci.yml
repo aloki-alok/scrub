@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  net-import-gate:
+    name: No networking packages in the dependency graph
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Fail if net packages are linked anywhere
+        run: |
+          deps=$(go list -deps ./... | grep -E '^net(/|$)|^net/http|^crypto/tls$|^golang.org/x/net' || true)
+          if [ -n "$deps" ]; then
+            echo "FORBIDDEN networking packages in dependency graph:"
+            echo "$deps"
+            exit 1
+          fi
+          echo "dependency graph is network-free"
+      - name: Fail if any third-party dependency exists
+        run: |
+          thirdparty=$(go list -deps ./... | grep -Ev '^(github.com/ryu-ryuk/scrub|internal/|vendor/)' | grep '\.' | grep -v '^github.com/ryu-ryuk/scrub' || true)
+          if [ -n "$thirdparty" ]; then
+            echo "Third-party dependencies found (each must pass the vetting checklist and be allowlisted here):"
+            echo "$thirdparty"
+            exit 1
+          fi
+          echo "stdlib only"
+
+  test:
+    name: Tests (network disabled)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: gofmt -l . && test -z "$(gofmt -l .)"
+      - name: Build (with network, caches toolchain)
+        run: go build ./...
+      - name: Test under a no-network namespace
+        run: |
+          sudo unshare --net -- sudo -u "$USER" env "PATH=$PATH" "HOME=$HOME" \
+            go test -count=1 ./...
+      - name: Fuzz (short)
+        run: |
+          go test -run=^$ -fuzz=FuzzScan -fuzztime=20s ./pkg/sanitize
+          go test -run=^$ -fuzz=FuzzSanitize -fuzztime=20s ./pkg/sanitize
+
+  vulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: govulncheck ./...
+
+  binary-smoke:
+    name: Binary self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build -trimpath -o scrub ./cmd/scrub
+      - name: Self-test under a no-network namespace
+        run: sudo unshare --net -- ./scrub --offline-check
