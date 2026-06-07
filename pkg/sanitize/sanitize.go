@@ -133,7 +133,22 @@ func dispatch(format Format, data []byte, opts Options) (out []byte, outFormat F
 
 func scanBytes(format Format, data []byte) (Report, error) {
 	rep := Report{Format: format}
-	return rep, fmt.Errorf("%w: %q", ErrUnsupportedFormat, format)
+	var (
+		fs  []Finding
+		err error
+	)
+	switch format {
+	case FormatJPEG:
+		fs, err = scanJPEG(data)
+	case FormatPNG:
+		fs, err = scanPNG(data)
+	case FormatGIF:
+		fs, err = scanGIF(data)
+	default:
+		return rep, fmt.Errorf("%w: %q", ErrUnsupportedFormat, format)
+	}
+	rep.Findings = fs
+	return rep, err
 }
 
 func readCapped(r io.Reader, maxBytes int64) ([]byte, error) {
