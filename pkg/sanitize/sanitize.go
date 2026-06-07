@@ -137,6 +137,9 @@ func dispatch(format Format, data []byte, opts Options) (out []byte, outFormat F
 	case FormatGIF:
 		out, err = sanitizeGIF(data)
 		return out, FormatGIF, err
+	case FormatWEBP:
+		out, err = sanitizeWEBP(data)
+		return out, FormatWEBP, err
 	default:
 		return nil, FormatUnknown, fmt.Errorf("%w: %q", ErrUnsupportedFormat, format)
 	}
@@ -155,6 +158,8 @@ func scanBytes(format Format, data []byte) (Report, error) {
 		fs, err = scanPNG(data)
 	case FormatGIF:
 		fs, err = scanGIF(data)
+	case FormatWEBP:
+		fs, err = scanWEBP(data)
 	default:
 		return rep, fmt.Errorf("%w: %q", ErrUnsupportedFormat, format)
 	}
