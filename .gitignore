@@ -1,0 +1,12 @@
+/scrub
+*.exe
+*.test
+*.out
+dist/
+
+*.local.md
+CLAUDE.local.md
+.env
+.env.*
+
+testdata/fuzz/
