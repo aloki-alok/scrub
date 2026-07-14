@@ -120,6 +120,64 @@ func TestVerifierIndependence(t *testing.T) {
 	}
 }
 
+// TestUnknownChunksAreStrippedAndFlagged guards the container-surgery
+// blind spot: a private chunk with a non-standard type is a metadata
+// vector just like EXIF, so it must not survive sanitization and the
+// verifier must refuse to call such input clean. This mirrors the
+// JPEG scanner, which already treats any unknown application segment
+// as a finding.
+func TestUnknownChunksAreStrippedAndFlagged(t *testing.T) {
+	secret := []byte("GPS 51.5074 -0.1278 Jane Doe")
+	cases := []struct {
+		name   string
+		format Format
+		data   []byte
+	}{
+		{"webp private chunk", FormatWEBP, privateWEBP(t, "priV", secret)},
+		{"png private chunk", FormatPNG, privatePNG(t, "prIv", secret)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// The verifier must see the private chunk as a finding.
+			before, err := scanBytes(c.format, c.data)
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			if before.Clean() {
+				t.Fatal("verifier reported a private-chunk file as clean")
+			}
+
+			var out bytes.Buffer
+			res, err := Sanitize(bytes.NewReader(c.data), &out, Options{})
+			if err != nil {
+				t.Fatalf("sanitize: %v (residue %v)", err, res.After.Findings)
+			}
+			if bytes.Contains(out.Bytes(), secret) {
+				t.Fatalf("private chunk data survived sanitization: %q still present", secret)
+			}
+			if !res.After.Clean() {
+				t.Errorf("residue after sanitization: %v", res.After.Findings)
+			}
+		})
+	}
+}
+
+// TestStandardRenderingChunksNotFlagged proves the unknown-chunk
+// fail-safe is precise: a standard PNG rendering chunk (pHYs, physical
+// pixel dimensions) is structure, not metadata, and must not be
+// reported as residue, or every ordinary PNG would look dirty.
+func TestStandardRenderingChunksNotFlagged(t *testing.T) {
+	phys := []byte{0, 0, 0x0B, 0x13, 0, 0, 0x0B, 0x13, 1} // 2835 ppu, meters
+	data := privatePNG(t, "pHYs", phys)
+	report, err := scanBytes(FormatPNG, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Clean() {
+		t.Fatalf("a standard pHYs chunk was flagged as residue: %v", report.Findings)
+	}
+}
+
 func TestUnsupportedFormatFailsLoudly(t *testing.T) {
 	var out bytes.Buffer
 	_, err := Sanitize(strings.NewReader("plain text file"), &out, Options{})
