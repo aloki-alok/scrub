@@ -48,9 +48,13 @@ func parseWEBP(data []byte) ([]riffChunk, error) {
 	return chunks, nil
 }
 
-func isWEBPMetadataChunk(fourCC string) bool {
+// isWEBPStructuralChunk reports whether a fourCC is one of the chunks
+// that carry image, alpha, or animation structure. Only these are kept;
+// EXIF/XMP/ICCP and any non-standard chunk are dropped, so a private
+// chunk cannot ride through the way a metadata denylist would allow.
+func isWEBPStructuralChunk(fourCC string) bool {
 	switch fourCC {
-	case "EXIF", "XMP ", "ICCP":
+	case "VP8 ", "VP8L", "VP8X", "ALPH", "ANIM", "ANMF":
 		return true
 	}
 	return false
@@ -63,7 +67,7 @@ func sanitizeWEBP(data []byte) ([]byte, error) {
 	}
 	var kept []riffChunk
 	for _, c := range chunks {
-		if isWEBPMetadataChunk(c.fourCC) {
+		if !isWEBPStructuralChunk(c.fourCC) {
 			continue
 		}
 		if c.fourCC == "VP8X" && len(c.data) >= 1 {
@@ -117,6 +121,13 @@ func scanWEBP(data []byte) ([]Finding, error) {
 		case "VP8X":
 			if len(c.data) >= 1 && c.data[0]&(vp8xFlagICC|vp8xFlagEXIF|vp8xFlagXMP) != 0 {
 				fs = append(fs, Finding{Location: "VP8X header", Kind: "metadata flags", Detail: "feature flags claim ICC/EXIF/XMP present"})
+			}
+		default:
+			// Fail-safe: any chunk that is not image, alpha, or
+			// animation structure is unexpected data, so it counts
+			// as a finding rather than being trusted.
+			if !isWEBPStructuralChunk(c.fourCC) {
+				fs = append(fs, Finding{Location: c.fourCC + " chunk", Kind: "unknown chunk", Detail: fmt.Sprintf("%d bytes", len(c.data))})
 			}
 		}
 	}

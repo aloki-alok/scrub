@@ -144,6 +144,49 @@ func dirtyWEBP(t *testing.T) []byte {
 	return out.Bytes()
 }
 
+// privateWEBP builds a valid WEBP whose only non-image chunk is a
+// non-standard fourCC carrying data. It is the container-surgery blind
+// spot: a metadata denylist that only drops EXIF/XMP/ICCP leaves this
+// chunk in place.
+func privateWEBP(t *testing.T, fourCC string, payload []byte) []byte {
+	t.Helper()
+	vp8x := []byte{0, 0, 0, 0, 7, 0, 0, 7, 0, 0}
+	vp8 := bytes.Repeat([]byte{0xAB}, 32)
+
+	var body bytes.Buffer
+	body.WriteString("WEBP")
+	writeRIFFChunk(&body, "VP8X", vp8x)
+	writeRIFFChunk(&body, "VP8 ", vp8)
+	writeRIFFChunk(&body, fourCC, payload)
+
+	var out bytes.Buffer
+	out.WriteString("RIFF")
+	binary.Write(&out, binary.LittleEndian, uint32(body.Len()))
+	out.Write(body.Bytes())
+	return out.Bytes()
+}
+
+// privatePNG builds a valid PNG carrying a private ancillary chunk (a
+// non-standard type that is neither a rendering chunk nor a known
+// metadata chunk). A metadata allowlist that only knows tEXt/eXIf/etc.
+// would miss it.
+func privatePNG(t *testing.T, typ string, payload []byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, testImage()); err != nil {
+		t.Fatal(err)
+	}
+	clean := buf.Bytes()
+	const ihdrEnd = 8 + 25
+	chunk := buildPNGChunk(typ, payload)
+
+	var out bytes.Buffer
+	out.Write(clean[:ihdrEnd])
+	out.Write(chunk)
+	out.Write(clean[ihdrEnd:])
+	return out.Bytes()
+}
+
 func writeRIFFChunk(buf *bytes.Buffer, fourCC string, data []byte) {
 	buf.WriteString(fourCC)
 	binary.Write(buf, binary.LittleEndian, uint32(len(data)))

@@ -93,6 +93,17 @@ var pngMetadataChunks = map[string]string{
 	"iCCP": "ICC profile",
 }
 
+// pngStructuralChunks are the critical and rendering chunks that carry
+// image structure or color, never personal metadata. Any chunk outside
+// this set and the metadata set above is treated as unexpected data, so
+// a private chunk cannot pass as clean. This mirrors the JPEG scanner's
+// fail-safe on unknown application segments.
+var pngStructuralChunks = map[string]bool{
+	"IHDR": true, "PLTE": true, "IDAT": true, "IEND": true,
+	"tRNS": true, "gAMA": true, "cHRM": true, "sRGB": true,
+	"sBIT": true, "bKGD": true, "hIST": true, "pHYs": true, "sPLT": true,
+}
+
 func scanPNG(data []byte) ([]Finding, error) {
 	if !bytes.HasPrefix(data, magicPNG) {
 		return nil, errors.New("missing PNG signature")
@@ -111,6 +122,8 @@ func scanPNG(data []byte) ([]Finding, error) {
 				detail = previewText(data[i+8 : i+8+length])
 			}
 			fs = append(fs, Finding{Location: typ + " chunk", Kind: kind, Detail: detail})
+		} else if !pngStructuralChunks[typ] {
+			fs = append(fs, Finding{Location: typ + " chunk", Kind: "unknown chunk", Detail: fmt.Sprintf("%d bytes", length)})
 		}
 		i += 12 + length
 		if typ == "IEND" {
