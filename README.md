@@ -77,11 +77,11 @@ input -> detect (magic bytes) -> handler -> verify (independent re-scan) -> outp
 - The verifier shares no state with handlers. A buggy handler cannot
   mark its own work clean.
 - The core engine is an importable, dependency-free Go library:
-  `github.com/ryu-ryuk/scrub/pkg/sanitize`. The CLI is a thin
+  `github.com/aloki-alok/scrub/pkg/sanitize`. The CLI is a thin
   consumer. `Sanitize` and `Scan` work on `io.Reader`/`io.Writer`.
 
 ```go
-import "github.com/ryu-ryuk/scrub/pkg/sanitize"
+import "github.com/aloki-alok/scrub/pkg/sanitize"
 
 report, err := sanitize.Scan(file)                    // inspect
 result, err := sanitize.Sanitize(in, out, sanitize.Options{})  // clean + verify

@@ -7,7 +7,7 @@ import (
 	"image/jpeg"
 	"os"
 
-	"github.com/ryu-ryuk/scrub/pkg/sanitize"
+	"github.com/aloki-alok/scrub/pkg/sanitize"
 )
 
 // selfTest builds a deliberately dirty JPEG in memory, confirms Scan

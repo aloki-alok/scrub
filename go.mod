@@ -1,3 +1,3 @@
-module github.com/ryu-ryuk/scrub
+module github.com/aloki-alok/scrub
 
 go 1.23

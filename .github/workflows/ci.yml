@@ -28,7 +28,7 @@ jobs:
           echo "dependency graph is network-free"
       - name: Fail if any third-party dependency exists
         run: |
-          thirdparty=$(go list -deps ./... | grep -Ev '^(github.com/ryu-ryuk/scrub|internal/|vendor/)' | grep '\.' | grep -v '^github.com/ryu-ryuk/scrub' || true)
+          thirdparty=$(go list -deps ./... | grep -Ev '^(github.com/aloki-alok/scrub|internal/|vendor/)' | grep '\.' | grep -v '^github.com/aloki-alok/scrub' || true)
           if [ -n "$thirdparty" ]; then
             echo "Third-party dependencies found (each must pass the vetting checklist and be allowlisted here):"
             echo "$thirdparty"
