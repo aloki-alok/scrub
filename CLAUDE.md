@@ -41,3 +41,23 @@ Local metadata stripper CLI. Go, stdlib only, public repo.
 - Sanitization strategy is reconstruction (re-encode, rebuild), not
   tag deletion, wherever the format allows.
 - Every bug fix lands with a regression test.
+
+## Roadmap / TODO
+
+Phase 1 (JPEG/PNG/GIF/WEBP + OOXML strip + verifier + CLI + CI) is
+complete and verified. Pending, roughly in priority order:
+
+- [ ] Redaction library + self-host HTTP service. Promote `pkg/sanitize`
+      into a stable, documented public API (the library others import),
+      and ship an optional self-hostable HTTP service that strips
+      uploads in-memory and streams the clean file back. Same invariants
+      apply: zero net in the core, no temp files, verify-before-return,
+      never persist the upload. Service is a thin handler over the
+      library, behind a flag/separate binary so the CLI stays dependency
+      free. (Paused; resume here.)
+- [ ] PDF support — spike pdfcpu vs rasterize, pick per the no-net /
+      stdlib-leaning constraint.
+- [ ] Audio/video via an ffmpeg subprocess (out-of-process, so the core
+      stays stdlib-only).
+- [ ] WASM build (run the sanitizer fully client-side in a browser).
+- [ ] Signed releases.
