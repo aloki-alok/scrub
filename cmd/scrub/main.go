@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ryu-ryuk/scrub/pkg/sanitize"
+	"github.com/aloki-alok/scrub/pkg/sanitize"
 )
 
 const (
